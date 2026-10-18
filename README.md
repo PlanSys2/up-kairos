@@ -12,7 +12,7 @@ Kairos plans in the same process (no files, no subprocess), anytime, and proves 
 exists. Every plan is validated before it is returned.
 
 ```bash
-pip install up-kairos
+pip install up-kairos      # with UPF 1.3 or newer
 ```
 
 ```python
