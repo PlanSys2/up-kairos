@@ -38,10 +38,6 @@ SEMANTICS = {
     # Its "valid" plan increases value(o1) from 1 to 2, and the goal is value(o1) == 1 (no UPF
     # validator handles the problem's undefined fluents, so the example is not checked there)
     "basic_undef_numeric": "the example's valid plan does not reach the goal",
-    # Happenings at the same instant that interfere (PDDL 2.1, VAL): UPF allows them with no
-    # epsilon, Kairos plans and validates with epsilon separation
-    "logistic": "load and move of the same robot at the same instant interfere",
-    "temporal_conditional": "two ends at the same instant interfere",
 }
 
 
@@ -83,7 +79,7 @@ def test_plans(name):
     with upf_validator(case.problem, plan) as v:
         if v.supports(case.problem.kind):
             assert v.validate(case.problem, plan).status == V.VALID, str(plan)
-    with PlanValidator(name="kairos") as kv:
+    with PlanValidator(name="kairos-val") as kv:
         assert kv.validate(case.problem, plan).status == V.VALID
     if case.optimum is not None and result.status == S.SOLVED_OPTIMALLY:
         metric = case.problem.quality_metrics[0]
@@ -98,7 +94,7 @@ def test_plans(name):
     if n in SEMANTICS else n for n in SUPPORTED if not pddl_plus(EXAMPLES[n].problem)])
 def test_validates_as_upf(name):
     case = EXAMPLES[name]
-    with PlanValidator(name="kairos") as kv:
+    with PlanValidator(name="kairos-val") as kv:
         for plan in case.valid_plans:
             assert kv.validate(case.problem, plan).status == V.VALID, str(plan)
         for plan in case.invalid_plans:
@@ -118,8 +114,16 @@ def test_anytime(name):
 
 
 def test_pddl_plus_plans_are_not_validated():
+    # UPF's plans have no end time, which a PDDL+ plan needs: kairos-val does not take them
     case = EXAMPLES["1d_movement"]
-    with OneshotPlanner(name="kairos") as planner:
-        plan = planner.solve(case.problem, timeout=10).plan
-    with PlanValidator(name="kairos") as kv:
-        assert kv.validate(case.problem, plan).status == V.UNKNOWN
+    assert KairosEngine.supports(case.problem.kind)
+    assert not up_kairos.KairosValidator.supports(case.problem.kind)
+
+
+def test_happenings_at_one_instant_without_an_epsilon():
+    # UPF lets them interfere when the problem has no epsilon (Kairos validates with 0)
+    case = EXAMPLES["logistic"]
+    assert case.problem.epsilon is None
+    with PlanValidator(name="kairos-val") as kv:
+        for plan in case.valid_plans:
+            assert kv.validate(case.problem, plan).status == V.VALID

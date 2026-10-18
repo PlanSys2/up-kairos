@@ -20,10 +20,10 @@
         result = planner.solve(problem, timeout=10)
 """
 
-from .engine import KairosEngine
+from .engine import KairosEngine, KairosValidator
 
-__version__ = "0.1.0"
-__all__ = ["KairosEngine", "register"]
+__version__ = "0.2.0"
+__all__ = ["KairosEngine", "KairosValidator", "register"]
 
 
 def register(environment=None):
@@ -32,3 +32,5 @@ def register(environment=None):
     env = environment if environment is not None else get_environment()
     if "kairos" not in env.factory.engines:
         env.factory.add_engine("kairos", __name__, "KairosEngine")
+    if "kairos-val" not in env.factory.engines:
+        env.factory.add_engine("kairos-val", __name__, "KairosValidator")

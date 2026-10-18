@@ -58,3 +58,14 @@ def _kind() -> ProblemKind:
 
 
 SUPPORTED_KIND = _kind()
+
+
+def _validator_kind() -> ProblemKind:
+    """What KairosValidator checks: all of it but PDDL+ (UPF's plans have no end time)."""
+    kind = _kind()
+    kind.unset_time("PROCESSES")
+    kind.unset_time("EVENTS")
+    return kind
+
+
+VALIDATOR_KIND = _validator_kind()

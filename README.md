@@ -1,5 +1,10 @@
 # up-kairos
 
+[![CI](https://github.com/PlanSys2/up-kairos/actions/workflows/ci.yml/badge.svg)](https://github.com/PlanSys2/up-kairos/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/up-kairos?logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/up-kairos/)
+[![Python versions](https://img.shields.io/pypi/pyversions/up-kairos?logo=python&logoColor=white)](https://pypi.org/project/up-kairos/)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 [Kairos](https://github.com/PlanSys2/kairos), a temporal and numeric PDDL planner, as an engine
 of the [Unified Planning Framework](https://github.com/aiplan4eu/unified-planning) (UPF).
 
@@ -14,7 +19,7 @@ pip install up-kairos
 import up_kairos
 from unified_planning.shortcuts import OneshotPlanner
 
-up_kairos.register()  # until UPF lists Kairos among its engines
+up_kairos.register()  # until UPF lists Kairos among its engines ("kairos", "kairos-val")
 
 with OneshotPlanner(name="kairos") as planner:
     result = planner.solve(problem, timeout=10)
@@ -27,7 +32,7 @@ with OneshotPlanner(name="kairos") as planner:
 |---|---|
 | `OneshotPlanner` | a plan; with a quality metric and a timeout, the best within it |
 | `AnytimePlanner` | each better plan as it comes (increasing quality), then the best |
-| `PlanValidator` | Kairos' validator: VAL's semantics, numeric, temporal, PDDL3 |
+| `PlanValidator` | `kairos-val`, Kairos' validator: numeric, temporal, PDDL3 (not PDDL+) |
 | `Replanner` | through UPF's meta engine: `Replanner(problem, name="replanner[kairos]")` |
 
 Results:
@@ -58,6 +63,8 @@ Kairos plans with:
 
 It plans 52 of the 66 example problems of UPF 1.3. The rest are hierarchical, scheduling,
 integer or boolean parameters, intermediate conditions, timed goals and undefined booleans.
+It passes UPF's engine tests (`up_test_cases/report.py kairos kairos-val`: oneshot, anytime
+and validation).
 
 Notes:
 
@@ -68,11 +75,13 @@ Notes:
   - bounded fluents, as state invariants.
 - **One instance at a time.** A durative action does not overlap itself, as in POPF:
   `SELF_OVERLAPPING` is not declared.
-- **Simultaneous happenings follow PDDL 2.1 and VAL.** Happenings that interfere need epsilon
-  between them (`problem.epsilon`, 0.001 by default). Kairos' plans keep that separation.
+- **Simultaneous happenings.** Kairos plans with epsilon between happenings that interfere
+  (`problem.epsilon`, 0.001 by default), as PDDL 2.1 and VAL. `kairos-val` validates with the
+  problem's epsilon, or, without one, as UPF: a happening may read what another at the same
+  instant writes, but writes that disagree are invalid.
 - **PDDL+ plans and their end.** A PDDL+ plan ends when the goal is checked, after letting
   processes and events act. UPF's plans have no end time, so it comes in
-  `result.metrics["kairos_plan_end"]`, and `PlanValidator` answers `UNKNOWN` for PDDL+.
+  `result.metrics["kairos_plan_end"]`, and `kairos-val` does not take PDDL+ problems.
 
 ## Options
 

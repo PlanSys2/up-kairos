@@ -41,7 +41,7 @@ from unified_planning.engines.results import (
     correct_plan_generation_result,
 )
 
-from .kind import SUPPORTED_KIND
+from .kind import SUPPORTED_KIND, VALIDATOR_KIND
 from .writer import KairosWriter
 
 credits = Credits(
@@ -81,8 +81,8 @@ _KAIROS_OPTIONS = ("memory_limit_mb", "engine", "search", "threads", "seed",
                    "stop_after_no_improvement", "target_cost")
 
 
-class KairosEngine(Engine, OneshotPlannerMixin, AnytimePlannerMixin, PlanValidatorMixin):
-    """Kairos in UPF.
+class KairosEngine(Engine, OneshotPlannerMixin, AnytimePlannerMixin):
+    """Kairos in UPF (its validator is KairosValidator, "kairos-val").
 
     Options (``OneshotPlanner(name="kairos", params={...})``):
 
@@ -99,7 +99,6 @@ class KairosEngine(Engine, OneshotPlannerMixin, AnytimePlannerMixin, PlanValidat
         Engine.__init__(self)
         OneshotPlannerMixin.__init__(self)
         AnytimePlannerMixin.__init__(self)
-        PlanValidatorMixin.__init__(self)
         unknown = set(options) - set(_KAIROS_OPTIONS) - {"anytime", "timeout"}
         if unknown:
             raise up.exceptions.UPUsageError(f"unknown Kairos options: {sorted(unknown)}")
@@ -125,11 +124,6 @@ class KairosEngine(Engine, OneshotPlannerMixin, AnytimePlannerMixin, PlanValidat
     @staticmethod
     def ensures(anytime_guarantee: AnytimeGuarantee) -> bool:
         return anytime_guarantee == AnytimeGuarantee.INCREASING_QUALITY
-
-    @staticmethod
-    def supports_plan(plan_kind: "up.plans.PlanKind") -> bool:
-        return plan_kind in (up.plans.PlanKind.SEQUENTIAL_PLAN,
-                             up.plans.PlanKind.TIME_TRIGGERED_PLAN)
 
     @staticmethod
     def get_credits(**kwargs) -> Optional[Credits]:
@@ -280,22 +274,58 @@ class KairosEngine(Engine, OneshotPlannerMixin, AnytimePlannerMixin, PlanValidat
     def _get_solutions(self, problem, timeout=None, output_stream=None):
         return self._get_solutions_with_params(problem, timeout, output_stream)
 
+    def _warn(self, text):
+        import warnings
+        warnings.warn(text, stacklevel=3)
+
+
+class KairosValidator(Engine, PlanValidatorMixin):
+    """Kairos' validator in UPF ("kairos-val"): numeric, temporal, PDDL3, as VAL. Not for PDDL+
+    (UPF's plans have no end time, which a PDDL+ plan needs)."""
+
+    def __init__(self, **options):
+        Engine.__init__(self)
+        PlanValidatorMixin.__init__(self)
+        if options:
+            raise up.exceptions.UPUsageError(f"unknown Kairos options: {sorted(options)}")
+
+    @property
+    def name(self) -> str:
+        return "kairos-val"
+
+    @staticmethod
+    def supported_kind() -> "up.model.ProblemKind":
+        return VALIDATOR_KIND
+
+    @staticmethod
+    def supports(problem_kind: "up.model.ProblemKind") -> bool:
+        return problem_kind <= KairosValidator.supported_kind()
+
+    @staticmethod
+    def supports_plan(plan_kind: "up.plans.PlanKind") -> bool:
+        return plan_kind in (up.plans.PlanKind.SEQUENTIAL_PLAN,
+                             up.plans.PlanKind.TIME_TRIGGERED_PLAN)
+
+    @staticmethod
+    def get_credits(**kwargs) -> Optional[Credits]:
+        return credits
+
     # --- PlanValidator ---------------------------------------------------------------------------
 
     def _validate(self, problem, plan) -> ValidationResult:
-        if problem.kind.has_processes() or problem.kind.has_events():
-            # A PDDL+ plan ends when the goal is checked, which UPF's plans do not say
-            return ValidationResult(ValidationResultStatus.UNKNOWN, self.name, [LogMessage(
-                LogLevel.WARNING, "PDDL+: a UPF plan has no end time, needed to validate it")])
         try:
             writer = KairosWriter(problem)
             domain_text, problem_text = writer.get_domain(), writer.get_problem()
             plan_text = writer.get_plan(plan)
-            report = kairos.validate_plan(domain_text, problem_text, kairos.parse_plan(plan_text))
+            options = kairos.ValidateOptions()
+            # Without an epsilon, UPF lets happenings at one instant interfere: Kairos' 0
+            options.epsilon = float(problem.epsilon) if problem.epsilon is not None else 0.0
+            report = kairos.validate_plan(domain_text, problem_text, kairos.parse_plan(plan_text),
+                                          options)
         except (up.exceptions.UPException, kairos.PddlError) as e:
             return ValidationResult(ValidationResultStatus.UNKNOWN, self.name,
                                     [LogMessage(LogLevel.ERROR, str(e))])
-        logs = self._logs(report.diagnostics)
+        logs = [LogMessage(_LOG_LEVEL[d.severity], str(d)) for d in report.diagnostics]
         if report.status == kairos.ValidationStatus.VALID:
             metrics = None
             if report.metric is not None and len(problem.quality_metrics) == 1:
@@ -317,10 +347,6 @@ class KairosEngine(Engine, OneshotPlannerMixin, AnytimePlannerMixin, PlanValidat
             reason, inapplicable = FailedValidationReason.MUTEX_CONFLICT, None
         return ValidationResult(ValidationResultStatus.INVALID, self.name, logs,
                                 reason=reason, inapplicable_action=inapplicable)
-
-    def _warn(self, text):
-        import warnings
-        warnings.warn(text, stacklevel=3)
 
 
 def _fraction(x: float) -> Fraction:

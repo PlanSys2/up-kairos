@@ -199,7 +199,7 @@ def test_oversubscription_takes_the_best_gain():
     r = solve(p)
     assert r.status == S.SOLVED_OPTIMALLY
     assert r.plan.actions[-1].actual_parameters[1].object() == rs[4]
-    with PlanValidator(name="kairos") as kv:
+    with PlanValidator(name="kairos-val") as kv:
         v = kv.validate(p, r.plan)
     assert v.status == V.VALID
     assert v.metric_evaluations[p.quality_metrics[0]] == 5  # the gain, as UPF counts it
@@ -272,7 +272,7 @@ def test_required_concurrency():
     assert isinstance(r.plan, up.plans.TimeTriggeredPlan)
     with PlanValidator(name="up_time_triggered_validator") as v:
         assert v.validate(p, r.plan).status == V.VALID
-    with PlanValidator(name="kairos") as kv:
+    with PlanValidator(name="kairos-val") as kv:
         assert kv.validate(p, r.plan).status == V.VALID
 
 
@@ -283,7 +283,7 @@ def test_validator_says_why():
     late = up.plans.TimeTriggeredPlan([
         (Fraction(0), up.plans.ActionInstance(lm, [m1]), Fraction(8)),
         (Fraction(4), up.plans.ActionInstance(mend, [f1, m1]), Fraction(5))])
-    with PlanValidator(name="kairos") as kv:
+    with PlanValidator(name="kairos-val") as kv:
         v = kv.validate(p, late)
     assert v.status == V.INVALID
     assert v.log_messages
