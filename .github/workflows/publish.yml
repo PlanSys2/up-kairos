@@ -1,0 +1,38 @@
+name: Publish
+
+# A version tag (e.g. 0.1.0, the same as up_kairos.__version__) publishes up-kairos on PyPI
+# (trusted publishing, environment "pypi")
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: The tag is the version
+        run: |
+          v=$(python -c "import re; print(re.search(r'__version__ = \"(.+)\"', open('up_kairos/__init__.py').read()).group(1))")
+          test "$v" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME}, version $v"; exit 1; }
+      - run: pipx run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: dist
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
