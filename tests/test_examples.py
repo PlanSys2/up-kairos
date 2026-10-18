@@ -45,6 +45,10 @@ SEMANTICS = {
 }
 
 
+# Fixed in UPF after 1.3 (the example's plan)
+FIXED_LATER = {"basic_undef_numeric"}
+
+
 def pddl_plus(problem):
     return problem.kind.has_processes() or problem.kind.has_events()
 
@@ -90,7 +94,7 @@ def test_plans(name):
 
 
 @pytest.mark.parametrize("name", [
-    pytest.param(n, marks=pytest.mark.xfail(reason=SEMANTICS[n], strict=True))
+    pytest.param(n, marks=pytest.mark.xfail(reason=SEMANTICS[n], strict=n not in FIXED_LATER))
     if n in SEMANTICS else n for n in SUPPORTED if not pddl_plus(EXAMPLES[n].problem)])
 def test_validates_as_upf(name):
     case = EXAMPLES[name]
