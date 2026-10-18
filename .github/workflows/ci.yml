@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Kairos from its repository (until kairos-planner is on PyPI)
+        run: pip install "kairos-planner @ git+https://github.com/PlanSys2/kairos@main"
+      - name: Install and test
+        run: |
+          pip install ".[test]"
+          pytest -q

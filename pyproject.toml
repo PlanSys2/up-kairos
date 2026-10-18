@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "up-kairos"
+dynamic = ["version"]
+description = "Kairos, a temporal and numeric PDDL planner, as an engine of the Unified Planning Framework"
+readme = "README.md"
+license = "Apache-2.0"
+authors = [{ name = "Francisco Martín Rico", email = "fmrico@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = ["unified-planning>=1.3", "kairos-planner>=1.0.3"]
+keywords = ["planning", "pddl", "unified-planning", "aiplan4eu", "temporal planning", "robotics"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/PlanSys2/up-kairos"
+Kairos = "https://github.com/PlanSys2/kairos"
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools]
+packages = ["up_kairos"]
+
+[tool.setuptools.dynamic]
+version = { attr = "up_kairos.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
